@@ -16,7 +16,9 @@ Usage
 1. Copy the file [extplugins/ipinfodb.py](extplugins/ipinfodb.py) into your `b3/extplugins` folder and
 [extplugins/conf/plugin_ipinfodb.ini](extplugins/conf/plugin_ipinfodb.ini) into your `b3/conf` folder
 
-2. Add the following line in your b3.xml file (below the other plugin lines)
+2. Import the table structure from [sql/client_location.sql](sql/client_location.sql) to your DB.
+
+3. Add the following line in your b3.xml file (below the other plugin lines)
   ```xml
   <plugin name="ipinfodb" config="@conf/plugin_ipinfodb.ini"/>
   ```
