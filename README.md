@@ -4,6 +4,11 @@ IPInfoDB Plugin for Big Brother Bot
 This plugin provides a simple interface for [IPInfoDB](http://ipinfodb.com) API.
 This plugin is for B3 plugin developers who want to use the free geolocation services from IPInfoDB.
 
+### Features
+- location information obtained from [IPInfoDB](http://ipinfodb.com)
+- set country code and country name as client attribute
+- Results cached in the DB
+
 ### Requirements
 - IPInfoDB API key - This API key is free for everyone. You just have to [register](http://ipinfodb.com/register.php).
 - latest [B3 Server](http://bigbrotherbot.net)
