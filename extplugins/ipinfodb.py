@@ -59,6 +59,7 @@ class IpinfodbPlugin(Plugin):
             setattr(b3.clients.Client, 'countryCode', None)
 
         # register event "Client Connect"
+        # todo: try to use EVT_CLIENT_CONNECT
         self.registerEvent(b3.events.EVT_CLIENT_AUTH)
 
         self.ipinfodb_cache = IpinfodbStorage(self)
@@ -112,6 +113,7 @@ class Ipinfodb_query(Thread):
 
 
 class IPinfo(object):
+    # todo: requests are cool stuff - du we need it realy?
     def __init__(self, api_key):
         self._api_key = api_key
 
@@ -169,6 +171,7 @@ class IpinfodbStorage(object):
              VALUES (%(id)s, %(countryCode)s, %(countryName)s) """.format(table_name=self._table)
 
     def update(self):
+        # todo: implement update
         pass
 
 
