@@ -20,6 +20,9 @@ import b3.clients
 import b3.events
 from threading import Thread
 from b3.plugin import Plugin
+from b3.querybuilder import QueryBuilder
+from b3.storage import Storage
+from b3.storage.database import DatabaseStorage
 try:
     import requests
 except ImportError:
@@ -52,51 +55,38 @@ class IpinfodbPlugin(Plugin):
         # load the admin plugin
         self._adminPlugin = self.console.getPlugin('admin')
 
-        # add attr to Client object
-        if not hasattr(b3.clients.Client, 'countryName'):
-            setattr(b3.clients.Client, 'countryName', None)
-        if not hasattr(b3.clients.Client, 'countryCode'):
-            setattr(b3.clients.Client, 'countryCode', None)
-
-        # register event "Client Connect"
-        # todo: try to use EVT_CLIENT_CONNECT
+        # register event "Client Auth"
         self.registerEvent(b3.events.EVT_CLIENT_AUTH)
 
-        self.ipinfodb_cache = IpinfodbStorage(self)
 
     def onEvent(self, event):
         if event.type == b3.events.EVT_CLIENT_AUTH:
             self.do_client_location_update(event.client)
 
-    def _setClientLocation(self, client, countryCode, countryName):
-        self.debug('Set countryName %s' % countryName.title())
-        setattr(client, 'countryCode', countryCode)
-        setattr(client, 'countryName', countryName.title())
+    #def _setClientLocation(self, client, countryCode, countryName):
+    #    self.debug('Set countryName %s' % countryName.title())
+    #    setattr(client, 'countryCode', countryCode)
+    #    setattr(client, 'countryName', countryName.title())
 
     def callback_client_update(self, client, data):
+        """callback that set country code to client"""
         if data['statusCode'] == 'OK':
-            countryName = str(data['countryName'])
-            countryCode = str(data['countryCode'])
-            # set client attr
-            self._setClientLocation(client, countryCode, countryName)
-            # save result to DB
-            self.ipinfodb_cache.create(client)
+            client.country = str(data['countryCode'])
+            client.save()
 
     def do_client_location_update(self, client):
-        self.debug('Start location update for %s' % client.name)
-        _result = self.ipinfodb_cache.getCountry(cid=client.id)
-        if _result and 'countryCode' in _result and 'countryName' in _result:
-            self.debug('Found location infos in DB')
-            self._setClientLocation(client, _result['countryCode'], _result['countryName'])
+        if len(client.country) >= 2:
+            self.debug('Found country code: %s in DB' % client.country)
+            #self._setClientLocation(client, _result['countryCode'], _result['countryName'])
         else:
-            self.debug('Update location infos from IPInfodb.com')
+            self.debug('No country code for %s. Try to update from IPInfodb.com' % client.name)
             if client.ip:
                 Ipinfodb_query(self.ipinfodb_api, ip=client.ip, callback=self.callback_client_update,
                                callback_args=(client,)).start()
             else:
                 self.error('No IP for %s found' % client.name)
 
-
+# thread for ipinfodb querys
 class Ipinfodb_query(Thread):
     def __init__(self, ipinfo_api, name=None, ip=None, callback=None, callback_args=()):
         Thread.__init__(self, name=name, )
@@ -111,7 +101,7 @@ class Ipinfodb_query(Thread):
         if self.__callback:
             self.__callback(*self.__callback_args, data=data)
 
-
+# tiny dirty api
 class IPinfo(object):
     # todo: requests are cool stuff - du we need it realy?
     def __init__(self, api_key):
@@ -131,48 +121,100 @@ class IPinfo(object):
         baseurl = 'http://api.ipinfodb.com/v3/ip-city/'
         return self._fetch_from_API(ip_addr, baseurl)
 
+###########################################
+# monkey and patches? lets break the world
+###########################################
 
-class IpinfodbStorage(object):
+# add country prperty to client
+class IpiClient(b3.clients.Client):
+    console = None
+    country = ''
 
-    def __init__(self, plugin):
-        self.plugin = plugin
-        self._table = 'ipinfo'
+    def __init__(self, console, **kwargs):
+        self.console = console
+        #self.country = country
+        #self._country = ''
+        self.message_history = [] # this allows unittests to check if a message was sent to the client
+        b3.clients.Client.__init__(self, **kwargs)
 
-    def getCountry(self, cid):
-        q = 'SELECT * from %s WHERE id = %s LIMIT 1' % (self._table, cid)
-        cursor = self.plugin.console.storage.query(q)
-        if cursor and not cursor.EOF:
-            r = cursor.getRow()
-            return r
+    b3.clients.Client._country = ''
+    def _set_country(self, v):
+        self._country = v
 
-    def create(self, client):
-        data = {
-            'id': client.id,
-            'countryCode': client.countryCode,
-            'countryName': client.countryName,
-        }
-        q = self._insertquery()
-        try:
-            cursor = self.plugin.console.storage.query(q, data)
-            if cursor.rowcount > 0:
-                self.plugin.debug("rowcount: %s, id:%s" % (cursor.rowcount, cursor.lastrowid))
+    def _get_country(self):
+        return self._country
+
+    b3.clients.Client.country = property(_get_country, _set_country)
+
+
+# add country field to DB
+class IpinfodbDatabaseStorage(b3.storage.database.DatabaseStorage):
+    console = None
+
+    def __init__(self, console, **kwargs):
+        self.console = console
+        b3.storage.database.DatabaseStorage.__init__(self, **kwargs)
+
+    def _setClient(self, client):
+        """
+        id int(11)   PRI NULL auto_increment 
+        ip varchar(16) YES   NULL   
+        greeting varchar(128) YES   NULL   
+        connections int(11) YES   NULL   
+        time_edit int(11) YES   NULL   
+        guid varchar(32)   MUL     
+        pbid varchar(32) YES   NULL   
+        name varchar(32) YES   NULL   
+        time_add int(11) YES   NULL   
+        auto_login int(11) YES   NULL   
+        mask_level int(11) YES   NULL   
+        group_bits int(11)
+        country varchar(3) YES NULL
+        """
+
+        self.console.debug('Storage: Ipinfodb plugin patched setClient %s' % client)
+
+        fields = (
+            'ip',
+            'greeting',
+            'connections',
+            'time_edit',
+            'guid',
+            'pbid',
+            'name',
+            'time_add',
+            'auto_login',
+            'mask_level',
+            'group_bits',
+            'login',
+            'password',
+            'country'
+        )
+    
+        if client.id > 0:
+            data = { 'id' : client.id }
+        else:
+            data = {}
+
+        for f in fields:
+            if hasattr(client, self.getVar(f)):
+                data[f] = getattr(client, self.getVar(f))
+
+
+        self.console.debug('Storage: Ipinfodb plugin patched  setClient data %s' % data)
+        if client.id > 0:
+            self.query(QueryBuilder(self.db).UpdateQuery(data, 'clients', { 'id' : client.id }))
+        else:
+            cursor = self.query(QueryBuilder(self.db).InsertQuery(data, 'clients'))
+            if cursor:
+                client.id = cursor.lastrowid
             else:
-                self.plugin.warning("inserting into %s failed" % self._table)
-        except Exception, e:
-            if e[0] == 1146:
-                self.plugin.error("Could not save to database : %s" % e[1])
-                self.plugin.info("Refer to this plugin readme file for instruction on how to create the required tables")
-            else:
-                raise e
+                client.id = None
 
-    def _insertquery(self):
-        return """INSERT INTO {table_name}
-             (id, countryCode, countryName)
-             VALUES (%(id)s, %(countryCode)s, %(countryName)s) """.format(table_name=self._table)
+        return client.id
 
-    def update(self):
-        # todo: implement update
-        pass
+    b3.storage.database.DatabaseStorage.setClient = _setClient
+
 
 
 if __name__ == '__main__':
@@ -190,6 +232,6 @@ if __name__ == '__main__':
     joe.ip = '8.8.8.8' # google DNS ;)
     joe.connects(cid=1)
 
-    #simon.connects(cid=2)
+    simon.connects(cid=2)
 
     #print myplugin.getCountry()
