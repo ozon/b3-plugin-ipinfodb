@@ -29,7 +29,7 @@ except ImportError:
     print 'Need requests module. http://docs.python-requests.org/en/latest/user/install/#install'
 
 __author__ = 'ozon'
-__version__ = '0.1.0'
+__version__ = '1.0.0'
 
 
 class IpinfodbPlugin(Plugin):
