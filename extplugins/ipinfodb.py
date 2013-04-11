@@ -34,6 +34,7 @@ __version__ = '0.1.0'
 
 class IpinfodbPlugin(Plugin):
     _adminPlugin = None
+    _api_key = None
 
     def onLoadConfig(self):
         # load API Key from config
@@ -48,7 +49,7 @@ class IpinfodbPlugin(Plugin):
             return False
         except Exception, err:
             self.debug(err)
-
+        # init our tiny Ipinfodb API
         self.ipinfodb_api = IPinfo(api_key=self._api_key)
 
     def onStartup(self):
@@ -70,14 +71,14 @@ class IpinfodbPlugin(Plugin):
     def do_client_location_update(self, client):
         if len(client.country) >= 2:
             self.debug('Found country code: %s in DB' % client.country)
-            #self._setClientLocation(client, _result['countryCode'], _result['countryName'])
         else:
             self.debug('No country code for %s. Try to update from IPInfodb.com' % client.name)
             if client.ip:
                 Ipinfodb_query(self.ipinfodb_api, ip=client.ip, callback=self.callback_client_update,
                                callback_args=(client,)).start()
             else:
-                self.error('No IP for %s found' % client.name)
+                self.error('No IP for %s found.' % client.name)
+
 
 # thread for ipinfodb querys
 class Ipinfodb_query(Thread):
@@ -119,7 +120,7 @@ class IPinfo(object):
 # monkey and patches? lets break the world
 ###########################################
 
-# add country prperty to client
+# add country property to client
 class IpiClient(b3.clients.Client):
     console = None
     country = ''
