@@ -54,19 +54,12 @@ class IpinfodbPlugin(Plugin):
     def onStartup(self):
         # load the admin plugin
         self._adminPlugin = self.console.getPlugin('admin')
-
         # register event "Client Auth"
         self.registerEvent(b3.events.EVT_CLIENT_AUTH)
-
 
     def onEvent(self, event):
         if event.type == b3.events.EVT_CLIENT_AUTH:
             self.do_client_location_update(event.client)
-
-    #def _setClientLocation(self, client, countryCode, countryName):
-    #    self.debug('Set countryName %s' % countryName.title())
-    #    setattr(client, 'countryCode', countryCode)
-    #    setattr(client, 'countryName', countryName.title())
 
     def callback_client_update(self, client, data):
         """callback that set country code to client"""
