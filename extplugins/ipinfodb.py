@@ -106,10 +106,11 @@ class IPinfo(object):
     # todo: requests are cool stuff - du we need it realy?
     def __init__(self, api_key):
         self._api_key = api_key
+        self._requests_session = requests.session()
 
     def _fetch_from_API(self, ip_addr=None, baseurl='http://api.ipinfodb.com/v3/ip-country/'):
         payload = {'timezone': False, 'format': 'json', 'key': self._api_key, 'ip': ip_addr}
-        r = requests.get(baseurl, params=payload, timeout=30)
+        r = self._requests_session.get(baseurl, params=payload, timeout=30)
         if r.status_code == requests.codes.ok:
             return r.json()
 
