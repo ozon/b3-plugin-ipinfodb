@@ -2,11 +2,11 @@ IPInfoDB Plugin for Big Brother Bot
 ===================================
 
 This plugin provides a simple interface for [IPInfoDB](http://ipinfodb.com) API.
-This plugin is for B3 plugin developers who want to use the free geolocation services from IPInfoDB.
+The Client Object gets a new property that includes a country code.
 
 ### Features
 - location information obtained from [IPInfoDB](http://ipinfodb.com)
-- set country code client attribute
+- set country code as client attribute
 - Results cached in the DB
 
 ### Requirements
@@ -30,3 +30,7 @@ Usage
 
 ### Configuration
 Add your IPInfoDB API key in [extplugins/conf/plugin_ipinfodb.ini](extplugins/conf/plugin_ipinfodb.ini).
+
+### What's next?
+Clients now have the ```country``` property which includes the country code.
+What do you do with it is up to you.
